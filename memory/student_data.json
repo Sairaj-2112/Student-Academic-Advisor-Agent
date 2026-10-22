@@ -1,0 +1,11 @@
+{
+    "name": "Student 1",
+    "completed_subjects": [
+        "Python",
+        "Machine Learning"
+    ],
+    "interests": [
+        "artificial intelligence",
+        "machine learning"
+    ]
+}

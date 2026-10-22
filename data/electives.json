@@ -1,0 +1,75 @@
+
+[
+  {
+    "id": "EL101",
+    "name": "Deep Learning",
+    "prerequisites": ["Python", "Machine Learning"],
+    "interests": ["AI", "Computer Vision", "Research"],
+    "difficulty": "Advanced",
+    "credits": 4,
+    "description": "Neural networks, CNNs and deep learning applications."
+  },
+  {
+    "id": "EL102",
+    "name": "Natural Language Processing",
+    "prerequisites": ["Python", "Machine Learning"],
+    "interests": ["AI", "NLP", "Generative AI"],
+    "difficulty": "Advanced",
+    "credits": 4,
+    "description": "Text processing, language models and chatbots."
+  },
+  {
+    "id": "EL103",
+    "name": "Data Mining",
+    "prerequisites": ["Python", "Database Management"],
+    "interests": ["Data Science", "Analytics", "Research"],
+    "difficulty": "Intermediate",
+    "credits": 3,
+    "description": "Discovering patterns and insights from datasets."
+  },
+  {
+    "id": "EL104",
+    "name": "Cloud Computing",
+    "prerequisites": ["Computer Networks"],
+    "interests": ["Cloud", "Software Engineering", "DevOps"],
+    "difficulty": "Intermediate",
+    "credits": 3,
+    "description": "Cloud infrastructure, deployment and distributed services."
+  },
+  {
+    "id": "EL105",
+    "name": "Cybersecurity",
+    "prerequisites": ["Computer Networks", "Operating Systems"],
+    "interests": ["Security", "Networking", "Research"],
+    "difficulty": "Advanced",
+    "credits": 4,
+    "description": "Security principles, threats and defensive techniques."
+  },
+  {
+    "id": "EL106",
+    "name": "Business Intelligence",
+    "prerequisites": ["Database Management"],
+    "interests": ["Analytics", "Data Science", "Business"],
+    "difficulty": "Beginner",
+    "credits": 3,
+    "description": "Dashboards, reporting and data-driven decisions."
+  },
+  {
+    "id": "EL107",
+    "name": "Reinforcement Learning",
+    "prerequisites": ["Python", "Machine Learning"],
+    "interests": ["AI", "Research", "Robotics"],
+    "difficulty": "Advanced",
+    "credits": 4,
+    "description": "Learning policies through actions and rewards."
+  },
+  {
+    "id": "EL108",
+    "name": "Software Project Management",
+    "prerequisites": [],
+    "interests": ["Management", "Software Engineering", "Business"],
+    "difficulty": "Beginner",
+    "credits": 3,
+    "description": "Planning, teamwork, risks and software delivery."
+  }
+]
