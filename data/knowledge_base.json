@@ -1,0 +1,91 @@
+{
+    "knowledge": [
+        {
+            "id": "73dcc6aa-4c36-4c97-9560-42ebf6228573",
+            "category": "course",
+            "title": "Machine Learning Fundamentals",
+            "description": "Learn supervised learning, unsupervised learning, regression and classification.",
+            "institution": "General",
+            "education_level": "Undergraduate",
+            "prerequisites": [
+                "Python",
+                "Basic Mathematics"
+            ],
+            "related_skills": [
+                "Machine Learning",
+                "Python",
+                "Statistics"
+            ],
+            "source_name": "Sample Knowledge",
+            "source_url": "",
+            "created_at": "2026-11-05T09:35:40.654483+00:00"
+        },
+        {
+            "id": "82bde177-bb1a-4264-ace1-05d4f62d075d",
+            "category": "career",
+            "title": "AI Engineer",
+            "description": "An AI Engineer develops and integrates artificial intelligence solutions.",
+            "institution": "",
+            "education_level": "",
+            "prerequisites": [],
+            "related_skills": [
+                "Python",
+                "Machine Learning",
+                "Deep Learning"
+            ],
+            "source_name": "Sample Knowledge",
+            "source_url": "",
+            "created_at": "2026-11-05T09:35:40.670929+00:00"
+        },
+        {
+            "id": "c81e8600-cded-460b-b610-cb1a9fcf5bd1",
+            "category": "skill",
+            "title": "SQL",
+            "description": "SQL is used to store, retrieve and manage relational database information.",
+            "institution": "",
+            "education_level": "",
+            "prerequisites": [],
+            "related_skills": [
+                "Database Management",
+                "Data Analysis"
+            ],
+            "source_name": "Sample Knowledge",
+            "source_url": "",
+            "created_at": "2026-11-05T09:35:40.687796+00:00"
+        },
+        {
+            "id": "da24cd2f-7898-49b1-a280-12eceba8119a",
+            "category": "institution",
+            "title": "MIT School of Computing",
+            "description": "A computing school in Pune, Maharashtra.",
+            "institution": "MIT School of Computing",
+            "education_level": "Undergraduate",
+            "prerequisites": [],
+            "related_skills": [],
+            "source_name": "Sample Knowledge",
+            "source_url": "",
+            "created_at": "2026-11-05T09:35:40.695557+00:00"
+        },
+        {
+            "id": "823e132d-a019-4466-9497-1b0fdd798834",
+            "category": "pathway",
+            "title": "Python to Data Scientist",
+            "description": "A learning pathway covering Python, statistics, SQL, machine learning and data visualization.",
+            "institution": "",
+            "education_level": "",
+            "prerequisites": [
+                "Basic Programming"
+            ],
+            "related_skills": [
+                "Python",
+                "Statistics",
+                "SQL",
+                "Machine Learning",
+                "Data Visualization"
+            ],
+            "source_name": "Sample Knowledge",
+            "source_url": "",
+            "created_at": "2026-11-05T09:35:40.713162+00:00"
+        }
+    ]
+}
