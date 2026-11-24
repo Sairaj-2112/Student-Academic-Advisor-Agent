@@ -1,1017 +1,597 @@
-
+﻿
 import { useState } from "react";
+import AdvisorWorkspace from "./AdvisorWorkspace";
 import "./App.css";
 
-const API_URL = "http://127.0.0.1:8000";
+const DEMO_EMAIL = "demo@student.com";
+const DEMO_PASSWORD = "student123";
 
-async function apiRequest(url, options = {}) {
-  const response = await fetch(url, options);
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(
-      typeof data.detail === "string"
-        ? data.detail
-        : "The request failed. Please try again."
-    );
-  }
-
-  return data;
-}
+const navigation = [
+  { id: "home", label: "Dashboard", icon: "\u{1F3E0}", group: "MAIN" },
+  { id: "academic", label: "Academic Advisor", icon: "\u{1F393}", group: "MAIN" },
+  { id: "prerequisite", label: "Prerequisite Verification", icon: "\u{1F50D}", group: "MAIN" },
+  { id: "assessments", label: "AI Assessments", icon: "\u{1F4DD}", group: "MAIN" },
+  { id: "career", label: "Career Advisor", icon: "\u{1F4BC}", group: "TOOLS" },
+  { id: "progress", label: "Profile & Progress", icon: "\u{1F4CA}", group: "TOOLS" },
+];
 
 function App() {
-  const [name, setName] = useState("");
-  const [subjects, setSubjects] = useState("");
-  const [interests, setInterests] = useState("");
-
-  const [results, setResults] = useState(null);
-  const [prerequisiteResults, setPrerequisiteResults] = useState(null);
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  // Quiz states
-  const [quizSubject, setQuizSubject] = useState("");
-  const [quizCount, setQuizCount] = useState(5);
-  const [quiz, setQuiz] = useState(null);
-  const [answers, setAnswers] = useState({});
-  const [quizResult, setQuizResult] = useState(null);
-  const [quizLoading, setQuizLoading] = useState(false);
-  const [quizError, setQuizError] = useState("");
-
-  const completedCourses = subjects
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-
-  const studentInterests = interests
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-
-  // ==========================================
-  // GENERATE ACADEMIC ADVICE
-  // ==========================================
-
-  const generateAdvice = async (event) => {
-    event.preventDefault();
-
-    setLoading(true);
-    setError("");
-    setResults(null);
-    setPrerequisiteResults(null);
-
+  const [user, setUser] = useState(() => {
     try {
-      const academicData = await apiRequest(
-        `${API_URL}/api/advisor/recommend`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name,
-            completed_subjects: completedCourses,
-            interests: studentInterests
-          })
-        }
-      );
-
-      const advisorResult = academicData.result || academicData;
-
-      const academicResults = advisorResult.academic_results || [];
-      const recommendations = advisorResult.recommendations || [];
-
-      setResults({
-        ...advisorResult,
-        student_name: academicData.student_name || name,
-        academic_results: academicResults,
-        recommendations
-      });
-
-      const profile = {
-        name,
-        education_level: "Undergraduate",
-        current_status: "Studying",
-        completed_courses: completedCourses,
-        interests: studentInterests
-      };
-
-      const prerequisiteData = await apiRequest(
-        `${API_URL}/api/advisor/prerequisites`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            profile,
-            academic_results: academicResults
-          })
-        }
-      );
-
-      setPrerequisiteResults(prerequisiteData.result || {});
-
-      if (!quizSubject && completedCourses.length > 0) {
-        setQuizSubject(completedCourses[0]);
-      }
-    } catch (err) {
-      setError(err.message || "Unable to generate academic advice.");
-    } finally {
-      setLoading(false);
+      return JSON.parse(localStorage.getItem("academic_user")) || null;
+    } catch {
+      return null;
     }
-  };
+  });
 
-  // ==========================================
-  // GENERATE AI KNOWLEDGE ASSESSMENT
-  // ==========================================
+  const [page, setPage] = useState("home");
+  const [authMode, setAuthMode] = useState("login");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const generateQuiz = async () => {
-    if (!quizSubject.trim()) {
-      setQuizError("Please enter a subject to assess.");
+  function saveUser(account) {
+    const student = {
+      name: account.name,
+      email: account.email,
+    };
+
+    localStorage.setItem("academic_user", JSON.stringify(student));
+    setUser(student);
+    setPage("home");
+    setMessage("");
+  }
+
+  function handleLogin(event) {
+    event.preventDefault();
+    setMessage("");
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (normalizedEmail === DEMO_EMAIL && password === DEMO_PASSWORD) {
+      saveUser({ name: "Demo Student", email: DEMO_EMAIL });
       return;
     }
 
-    setQuizLoading(true);
-    setQuizError("");
-    setQuiz(null);
-    setQuizResult(null);
-    setAnswers({});
+    let accounts = [];
 
     try {
-      const data = await apiRequest(`${API_URL}/api/quiz/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          student_name: name || "Student",
-          subject: quizSubject.trim(),
-          question_count: Number(quizCount)
-        })
-      });
-
-      if (!data.questions || data.questions.length === 0) {
-        throw new Error("The AI did not return any questions. Please try again.");
-      }
-
-      setQuiz(data);
-    } catch (err) {
-      setQuizError(err.message || "Unable to generate quiz.");
-    } finally {
-      setQuizLoading(false);
+      accounts = JSON.parse(localStorage.getItem("academic_accounts") || "[]");
+    } catch {
+      accounts = [];
     }
-  };
 
-  // ==========================================
-  // SELECT ANSWER
-  // ==========================================
-
-  const selectAnswer = (questionId, optionId) => {
-    setAnswers((previous) => ({
-      ...previous,
-      [questionId]: optionId
-    }));
-  };
-
-  // ==========================================
-  // SUBMIT QUIZ
-  // ==========================================
-
-  const submitQuiz = async () => {
-    if (!quiz) return;
-
-    setQuizLoading(true);
-    setQuizError("");
-
-    try {
-      const data = await apiRequest(`${API_URL}/api/quiz/submit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          attempt_id: quiz.attempt_id,
-          student_name: name || "Student",
-          answers
-        })
-      });
-
-      setQuizResult(data);
-      setQuiz(null);
-    } catch (err) {
-      setQuizError(err.message || "Unable to submit quiz.");
-    } finally {
-      setQuizLoading(false);
-    }
-  };
-
-  // ==========================================
-  // FORMAT HELPERS
-  // ==========================================
-
-  const formatLabel = (value) => {
-    return String(value ?? "")
-      .replaceAll("_", " ")
-      .replace(/\b\w/g, (letter) => letter.toUpperCase());
-  };
-
-  const getStatusStyle = (status) => {
-    const styles = {
-      prerequisites_met: {
-        background: "#dcfce7",
-        color: "#166534"
-      },
-      missing_prerequisites: {
-        background: "#fee2e2",
-        color: "#991b1b"
-      },
-      needs_verification: {
-        background: "#fef3c7",
-        color: "#92400e"
-      },
-      restricted_enrollment: {
-        background: "#ede9fe",
-        color: "#5b21b6"
-      },
-      not_applicable: {
-        background: "#dbeafe",
-        color: "#1e40af"
-      }
-    };
-
-    return styles[String(status || "").toLowerCase()] || {
-      background: "#e5e7eb",
-      color: "#374151"
-    };
-  };
-
-  const renderList = (items) => {
-    if (!Array.isArray(items) || items.length === 0) return null;
-
-    return (
-      <ul style={{ paddingLeft: "22px", marginTop: "8px" }}>
-        {items.map((item, index) => (
-          <li key={index} style={{ marginBottom: "5px" }}>
-            {typeof item === "string" ? item : JSON.stringify(item)}
-          </li>
-        ))}
-      </ul>
+    const account = accounts.find(
+      (item) =>
+        item.email.toLowerCase() === normalizedEmail &&
+        item.password === password
     );
-  };
 
-  // Backend returns difficulty_analysis as a list.
-  // This helper also supports an object response for compatibility.
-  const getDifficultyEntries = (analysis) => {
-    if (Array.isArray(analysis)) {
-      return analysis.map((item) => [
-        item.difficulty || "Unknown",
-        item
-      ]);
+    if (!account) {
+      setMessage("Invalid email or password. Please try again.");
+      return;
     }
 
-    if (analysis && typeof analysis === "object") {
-      return Object.entries(analysis);
+    saveUser(account);
+  }
+
+  function handleRegister(event) {
+    event.preventDefault();
+    setMessage("");
+
+    if (!name.trim() || !email.trim() || !password) {
+      setMessage("Please fill in all required fields.");
+      return;
     }
 
-    return [];
-  };
+    if (password.length < 6) {
+      setMessage("Password must contain at least 6 characters.");
+      return;
+    }
 
-  // ==========================================
-  // UI
-  // ==========================================
+    if (password !== confirmPassword) {
+      setMessage("Passwords do not match.");
+      return;
+    }
 
-  return (
-    <div style={pageStyle}>
-      <header style={headerStyle}>
-        <h1>Universal AI Academic & Career Advisor</h1>
-        <p>
-          AI-powered academic planning, course recommendations,
-          prerequisite analysis and knowledge assessment.
-        </p>
-      </header>
+    const normalizedEmail = email.trim().toLowerCase();
 
-      {/* STUDENT PROFILE */}
+    let accounts = [];
 
-      <form onSubmit={generateAdvice} style={formStyle}>
-        <h2>Student Information</h2>
+    try {
+      accounts = JSON.parse(localStorage.getItem("academic_accounts") || "[]");
+    } catch {
+      accounts = [];
+    }
 
-        <label>Student Name</label>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Enter your name"
-          required
-          style={inputStyle}
-        />
+    if (accounts.some((item) => item.email.toLowerCase() === normalizedEmail)) {
+      setMessage("This email is already registered. Please log in.");
+      return;
+    }
 
-        <label>Completed Subjects / Courses</label>
-        <input
-          value={subjects}
-          onChange={(e) => setSubjects(e.target.value)}
-          placeholder="Python, Data Structures, Mathematics"
-          style={inputStyle}
-        />
+    const account = {
+      name: name.trim(),
+      email: normalizedEmail,
+      password,
+    };
 
-        <label>Your Interests</label>
-        <input
-          value={interests}
-          onChange={(e) => setInterests(e.target.value)}
-          placeholder="Artificial Intelligence, Data Science"
-          required
-          style={inputStyle}
-        />
+    accounts.push(account);
+    localStorage.setItem("academic_accounts", JSON.stringify(accounts));
+    saveUser(account);
+  }
 
-        <button type="submit" disabled={loading} style={buttonStyle}>
-          {loading ? "Analyzing Profile..." : "Generate Academic Advice"}
-        </button>
-      </form>
+  function handleLogout() {
+    localStorage.removeItem("academic_user");
+    setUser(null);
+    setPage("home");
+    setAuthMode("login");
+    setEmail("");
+    setPassword("");
+    setMessage("");
+  }
 
-      {loading && (
-        <div style={loadingStyle}>
-          Analyzing your academic profile and checking prerequisites...
-        </div>
-      )}
+  function navigateTo(section) {
+    setPage(section);
+    setSidebarOpen(false);
+  }
 
-      {error && <div style={errorStyle}>{error}</div>}
+  if (!user) {
+    return (
+      <div className="auth-page">
+        <div className="auth-left">
+          <div className="brand">
+            <div className="brand-icon">A</div>
+            <span>AcadAI</span>
+          </div>
 
-      {/* ACADEMIC REPORT */}
+          <div className="auth-intro">
+            <span className="eyebrow">YOUR PERSONAL AI GUIDE</span>
+            <h1>
+              Make smarter
+              <br />
+              <span>academic decisions.</span>
+            </h1>
+            <p>
+              Discover learning opportunities, understand course
+              prerequisites, assess your knowledge and plan your career
+              with your AI-powered academic advisor.
+            </p>
 
-      {results && (
-        <section style={sectionStyle}>
-          <h2>Academic Advisor Report</h2>
-          <h3>Welcome, {results.student_name || name}!</h3>
-
-          <div style={statsContainer}>
-            <div style={statCard}>
-              <h2>{results.academic_results?.length ?? 0}</h2>
-              <p>Academic Results</p>
-            </div>
-
-            <div style={statCard}>
-              <h2>{results.recommendations?.length ?? 0}</h2>
-              <p>Course Recommendations</p>
-            </div>
-
-            <div style={statCard}>
-              <h2>{prerequisiteResults?.analysis?.length ?? 0}</h2>
-              <p>Prerequisite Checks</p>
+            <div className="auth-benefits">
+              <div>✓ Personalized academic recommendations</div>
+              <div>✓ Intelligent prerequisite verification</div>
+              <div>✓ AI-powered quizzes and assessments</div>
+              <div>✓ Career and skill development guidance</div>
             </div>
           </div>
 
-          <h2>Recommended Courses</h2>
-
-          {results.recommendations?.length > 0 ? (
-            results.recommendations.map((course, index) => (
-              <div
-                key={`${course.course_code || course.title}-${index}`}
-                style={cardStyle}
-              >
-                <h3>{course.title || "Untitled Course"}</h3>
-                <p>
-                  <strong>Course Code:</strong>{" "}
-                  {course.course_code || "Not available"}
-                </p>
-                <p>
-                  <strong>Department:</strong>{" "}
-                  {course.subject || "Not available"}
-                </p>
-                <p>
-                  <strong>Credits:</strong>{" "}
-                  {course.credits ?? "Not available"}
-                </p>
-                <p>
-                  <strong>Interest:</strong>{" "}
-                  {course.interest || "Not specified"}
-                </p>
-                <p>{course.description || "No description available."}</p>
-              </div>
-            ))
-          ) : (
-            <p>No course recommendations found.</p>
-          )}
-
-          <h2>Academic Search Results</h2>
-
-          {results.academic_results?.length > 0 ? (
-            results.academic_results.map((course, index) => (
-              <div
-                key={`${course.course_code || course.title}-${index}`}
-                style={cardStyle}
-              >
-                <h3>{course.title || "Untitled Course"}</h3>
-                <p>
-                  <strong>Course Code:</strong>{" "}
-                  {course.course_code ||
-                    `${course.subject || ""} ${course.course_number || ""}`}
-                </p>
-                <p>
-                  <strong>Department:</strong>{" "}
-                  {course.subject || "Not available"}
-                </p>
-                <p>
-                  <strong>Credits:</strong>{" "}
-                  {course.credits ?? "Not available"}
-                </p>
-                <p>
-                  <strong>Prerequisites:</strong>{" "}
-                  {course.prerequisite_text || "Not specified"}
-                </p>
-                <p>{course.description || "No description available."}</p>
-              </div>
-            ))
-          ) : (
-            <p>No academic search results found.</p>
-          )}
-
-          <hr style={dividerStyle} />
-
-          {/* PREREQUISITE REPORT */}
-
-          <h2>Prerequisite & Eligibility Analysis</h2>
-          <p>
-            The Prerequisite Agent compares your completed subjects with
-            course requirements and identifies additional conditions.
-          </p>
-
-          {prerequisiteResults && (
-            <>
-              {prerequisiteResults.summary && (
-                <div style={summaryStyle}>
-                  <h3>Analysis Summary</h3>
-                  {typeof prerequisiteResults.summary === "object"
-                    ? Object.entries(prerequisiteResults.summary).map(
-                        ([key, value]) => (
-                          <p key={key}>
-                            <strong>{formatLabel(key)}:</strong>{" "}
-                            {String(value)}
-                          </p>
-                        )
-                      )
-                    : <p>{prerequisiteResults.summary}</p>}
-                </div>
-              )}
-
-              <h3>Individual Course Eligibility</h3>
-
-              {prerequisiteResults.analysis?.length > 0 ? (
-                prerequisiteResults.analysis.map((item, index) => {
-                  const status = item.status || "needs_verification";
-
-                  return (
-                    <div key={index} style={cardStyle}>
-                      <h3>
-                        {item.title ||
-                          item.course_name ||
-                          item.course ||
-                          `Course ${index + 1}`}
-                      </h3>
-
-                      {item.course_code && (
-                        <p>
-                          <strong>Course Code:</strong> {item.course_code}
-                        </p>
-                      )}
-
-                      <p>
-                        <strong>Status:</strong>{" "}
-                        <span
-                          style={{
-                            ...getStatusStyle(status),
-                            padding: "6px 10px",
-                            borderRadius: "6px",
-                            fontWeight: "bold"
-                          }}
-                        >
-                          {formatLabel(status)}
-                        </span>
-                      </p>
-
-                      {item.prerequisite_text && (
-                        <p>
-                          <strong>Prerequisites:</strong>{" "}
-                          {item.prerequisite_text}
-                        </p>
-                      )}
-
-                      {item.explanation && (
-                        <p>
-                          <strong>Explanation:</strong> {item.explanation}
-                        </p>
-                      )}
-
-                      {item.missing_prerequisites?.length > 0 && (
-                        <div style={missingStyle}>
-                          <strong>Missing Requirements:</strong>
-                          {renderList(item.missing_prerequisites)}
-                        </div>
-                      )}
-
-                      {item.matched_prerequisites?.length > 0 && (
-                        <div style={matchedStyle}>
-                          <strong>Matched Requirements:</strong>
-                          {renderList(item.matched_prerequisites)}
-                        </div>
-                      )}
-
-                      {item.requirement_groups?.length > 0 && (
-                        <div style={infoStyle}>
-                          <strong>Prerequisite Alternatives:</strong>
-                          {item.requirement_groups.map((group, i) => (
-                            <p key={i}>
-                              Option {i + 1}:{" "}
-                              {Array.isArray(group)
-                                ? group.join(" AND ")
-                                : String(group)}
-                            </p>
-                          ))}
-                        </div>
-                      )}
-
-                      {item.eligibility_restrictions?.length > 0 && (
-                        <div style={restrictionStyle}>
-                          <strong>Enrollment Restrictions:</strong>
-                          {renderList(item.eligibility_restrictions)}
-                          <p>Confirm these conditions with your institution.</p>
-                        </div>
-                      )}
-
-                      {item.concurrent_conditions?.length > 0 && (
-                        <div style={verificationStyle}>
-                          <strong>Concurrent Enrollment Conditions:</strong>
-                          {renderList(item.concurrent_conditions)}
-                          <p>
-                            You may need to take these courses at the same time.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              ) : (
-                <p>No individual prerequisite analysis records were returned.</p>
-              )}
-
-              {prerequisiteResults.important_note && (
-                <div style={noticeStyle}>
-                  <strong>Important:</strong>{" "}
-                  {prerequisiteResults.important_note}
-                </div>
-              )}
-            </>
-          )}
-        </section>
-      )}
-
-      {/* ======================================
-          KNOWLEDGE VERIFICATION QUIZ
-      ====================================== */}
-
-      <section style={sectionStyle}>
-        <div style={quizHeaderStyle}>
-          <h2>Prerequisite Knowledge Verification</h2>
-          <p>
-            Test your understanding of a subject you have previously studied.
-            Questions are generated dynamically using AI.
-          </p>
+          <div className="auth-footer">AI Academic &amp; Career Advisor</div>
         </div>
 
-        <div style={formStyle}>
-          <label>Subject to Assess</label>
-          <input
-            value={quizSubject}
-            onChange={(e) => setQuizSubject(e.target.value)}
-            placeholder="Example: Python, Data Structures, Mathematics"
-            style={inputStyle}
-          />
+        <div className="auth-right">
+          <div className="auth-card">
+            <div className="mobile-brand">AcadAI</div>
+            <span className="eyebrow">
+              {authMode === "login" ? "WELCOME BACK" : "GET STARTED"}
+            </span>
 
-          <label>Number of Questions</label>
-          <select
-            value={quizCount}
-            onChange={(e) => setQuizCount(Number(e.target.value))}
-            style={inputStyle}
-          >
-            <option value={5}>5 Questions</option>
-          </select>
+            <h2>
+              {authMode === "login"
+                ? "Sign in to your account"
+                : "Create your account"}
+            </h2>
 
-          <button
-            type="button"
-            onClick={generateQuiz}
-            disabled={quizLoading || !quizSubject.trim()}
-            style={buttonStyle}
-          >
-            {quizLoading ? "Generating Quiz..." : "Generate AI Quiz"}
-          </button>
-        </div>
-
-        {quizError && <div style={errorStyle}>{quizError}</div>}
-
-        {/* QUIZ QUESTIONS */}
-
-        {quiz && (
-          <div style={cardStyle}>
-            <h2>{quiz.subject} Knowledge Assessment</h2>
-            <p>
-              Student: {quiz.student_name || name || "Student"} | Questions:{" "}
-              {quiz.questions.length}
-            </p>
-            <p>
-              Select one answer for each question. Unanswered questions
-              will be counted separately.
+            <p className="auth-subtitle">
+              {authMode === "login"
+                ? "Continue your academic journey with AcadAI."
+                : "Join AcadAI and start planning your future."}
             </p>
 
-            {quiz.questions.map((question, index) => (
-              <div key={question.question_id} style={questionStyle}>
-                <p style={{ fontWeight: "bold" }}>
-                  {index + 1}. {question.question}
-                </p>
+            <form onSubmit={authMode === "login" ? handleLogin : handleRegister}>
+              {authMode === "register" && (
+                <label>
+                  Full name
+                  <input
+                    type="text"
+                    placeholder="Enter your full name"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    required
+                  />
+                </label>
+              )}
 
-                <p style={mutedStyle}>
-                  Topic: {question.topic} | Difficulty:{" "}
-                  {formatLabel(question.difficulty)}
-                </p>
+              <label>
+                Email address
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                />
+              </label>
 
-                {question.options.map((option) => (
-                  <label
-                    key={option.id}
-                    style={{
-                      ...optionStyle,
-                      borderColor:
-                        answers[question.question_id] === option.id
-                          ? "#2563eb"
-                          : "#e5e7eb",
-                      background:
-                        answers[question.question_id] === option.id
-                          ? "#eff6ff"
-                          : "#ffffff"
+              <label>
+                Password
+                <input
+                  type="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                />
+              </label>
+
+              {authMode === "register" && (
+                <label>
+                  Confirm password
+                  <input
+                    type="password"
+                    placeholder="Confirm your password"
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    required
+                  />
+                </label>
+              )}
+
+              {message && <div className="auth-message">{message}</div>}
+
+              <button className="primary-button" type="submit">
+                {authMode === "login" ? "Sign In" : "Create Account"}
+                <span>→</span>
+              </button>
+            </form>
+
+            <div className="auth-switch">
+              {authMode === "login" ? (
+                <>
+                  Don't have an account?{" "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode("register");
+                      setMessage("");
                     }}
                   >
-                    <input
-                      type="radio"
-                      name={question.question_id}
-                      value={option.id}
-                      checked={answers[question.question_id] === option.id}
-                      onChange={() =>
-                        selectAnswer(question.question_id, option.id)
-                      }
-                    />
-                    <span>
-                      <strong>{option.id}.</strong> {option.text}
-                    </span>
-                  </label>
-                ))}
+                    Register
+                  </button>
+                </>
+              ) : (
+                <>
+                  Already have an account?{" "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode("login");
+                      setMessage("");
+                    }}
+                  >
+                    Sign in
+                  </button>
+                </>
+              )}
+            </div>
+
+            {authMode === "login" && (
+              <div className="demo-box">
+                <strong>Demo account</strong>
+                <p>Email: {DEMO_EMAIL}</p>
+                <p>Password: {DEMO_PASSWORD}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail(DEMO_EMAIL);
+                    setPassword(DEMO_PASSWORD);
+                  }}
+                >
+                  Use demo credentials
+                </button>
               </div>
-            ))}
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-            <p>
-              Answered: {Object.keys(answers).length} / {quiz.questions.length}
-            </p>
+  const activeItem = navigation.find((item) => item.id === page);
+  const workspacePages = [
+    "academic",
+    "prerequisite",
+    "assessments",
+    "career",
+    "progress",
+  ];
 
+  return (
+    <div className="app-shell">
+      <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
+        <div className="sidebar-brand">
+          <div className="brand-icon">A</div>
+          <div>
+            <strong>AcadAI</strong>
+            <small>STUDENT PLATFORM</small>
+          </div>
+        </div>
+
+        {/* CLICKABLE STUDENT ACCOUNT */}
+        <button
+          type="button"
+          className="sidebar-student clickable-account"
+          onClick={() => navigateTo("progress")}
+          title="Open your profile"
+        >
+          <button
+  type="button"
+  className="student-profile-button"
+  onClick={() => navigateTo("progress")}
+  title="Open Profile & Progress"
+>
+  <div className="user-avatar">
+    {user.name?.charAt(0).toUpperCase()}
+  </div>
+
+  <div className="student-details">
+    <strong>{user.name}</strong>
+    <small>Student Account</small>
+  </div>
+
+  <span className="profile-arrow">›</span>
+</button>
+        </button>
+
+        <nav className="sidebar-navigation">
+          <div className="nav-group-label">MAIN MENU</div>
+
+          {navigation.filter((item) => item.group === "MAIN").map((item) => (
+            <button
+              key={item.id}
+              className={`sidebar-link ${page === item.id ? "selected" : ""}`}
+              onClick={() => navigateTo(item.id)}
+            >
+              <span className="sidebar-icon">{item.icon}</span>
+              <span>{item.label}</span>
+              {page === item.id && <span className="active-indicator" />}
+            </button>
+          ))}
+
+          <div className="nav-group-label tools-label">MY WORKSPACE</div>
+
+          {navigation.filter((item) => item.group === "TOOLS").map((item) => (
+            <button
+              key={item.id}
+              className={`sidebar-link ${page === item.id ? "selected" : ""}`}
+              onClick={() => navigateTo(item.id)}
+            >
+              <span className="sidebar-icon">{item.icon}</span>
+              <span>{item.label}</span>
+              {page === item.id && <span className="active-indicator" />}
+            </button>
+          ))}
+        </nav>
+
+        <div className="sidebar-bottom">
+          <div className="sidebar-help">
+            <span>✨</span>
+            <strong>Keep learning!</strong>
+            <p>Your next opportunity starts with a small step.</p>
+          </div>
+
+          <button className="sidebar-logout" onClick={handleLogout}>
+            <span>↪</span> Sign Out
+          </button>
+
+          <small className="sidebar-version">AcadAI · Student Edition</small>
+        </div>
+      </aside>
+
+      {sidebarOpen && (
+        <button
+          className="sidebar-overlay"
+          onClick={() => setSidebarOpen(false)}
+          aria-label="Close navigation"
+        />
+      )}
+
+      <div className="main-area">
+        <header className="topbar">
+          <div className="topbar-left">
+            <button
+              className="menu-toggle"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              aria-label="Toggle navigation"
+            >
+              ☰
+            </button>
+            <div>
+              <div className="breadcrumb">AcadAI / {activeItem?.label}</div>
+              <h2>{activeItem?.label}</h2>
+            </div>
+          </div>
+
+          {/* CLICKABLE TOP-RIGHT PROFILE */}
+          <div className="topbar-right">
             <button
               type="button"
-              onClick={submitQuiz}
-              disabled={quizLoading}
-              style={submitButtonStyle}
+              className="topbar-profile-button"
+              onClick={() => navigateTo("progress")}
+              title="Open your profile"
             >
-              {quizLoading ? "Evaluating..." : "Submit Quiz & View Assessment"}
+              <span className="topbar-greeting">Welcome, {user.name}</span>
+              <span className="topbar-avatar">
+                {user.name?.charAt(0).toUpperCase()}
+              </span>
             </button>
           </div>
-        )}
+        </header>
 
-        {/* QUIZ RESULT */}
-
-        {quizResult && (
-          <div style={cardStyle}>
-            <h2>Knowledge Assessment Report</h2>
-            <h3>{quizResult.subject}</h3>
-            <p>Student: {quizResult.student_name}</p>
-
-            <div style={statsContainer}>
-              <div style={statCard}>
-                <h2>{quizResult.percentage}%</h2>
-                <p>Overall Score</p>
-              </div>
-
-              <div style={statCard}>
-                <h2>{quizResult.correct_answers}</h2>
-                <p>Correct Answers</p>
-              </div>
-
-              <div style={statCard}>
-                <h2>{quizResult.incorrect_answers}</h2>
-                <p>Incorrect Answers</p>
-              </div>
-
-              <div style={statCard}>
-                <h2>{quizResult.unanswered_questions}</h2>
-                <p>Unanswered</p>
-              </div>
+        <main className="main-content">
+          {page === "home" ? (
+            <Dashboard user={user} onNavigate={navigateTo} />
+          ) : workspacePages.includes(page) ? (
+            <div className="workspace-container">
+              <AdvisorWorkspace student={user} section={page} />
             </div>
-
-            <div style={summaryStyle}>
-              <h3>{quizResult.assessment}</h3>
-              <p>
-                <strong>Readiness signal:</strong>{" "}
-                {formatLabel(quizResult.readiness_signal)}
-              </p>
-              <p>
-                This result reflects performance on this quiz, not formal
-                course completion or institutional eligibility.
-              </p>
-            </div>
-
-            {/* TOPIC-WISE ANALYSIS */}
-
-            <h3>Topic-wise Knowledge Analysis</h3>
-
-            {quizResult.topic_analysis?.length > 0 ? (
-              quizResult.topic_analysis.map((topic, index) => (
-                <div key={index} style={cardStyle}>
-                  <h4>{topic.topic}</h4>
-                  <p>
-                    Score: {topic.correct_answers}/{topic.total_questions} (
-                    {topic.percentage}%)
-                  </p>
-                  <p>
-                    <strong>Assessment:</strong>{" "}
-                    {formatLabel(topic.status || topic.interpretation || "Not available")}
-                  </p>
-                </div>
-              ))
-            ) : (
-              <p>No topic analysis available.</p>
-            )}
-
-            {/* DIFFICULTY ANALYSIS */}
-
-            <h3>Difficulty Analysis</h3>
-
-            {getDifficultyEntries(quizResult.difficulty_analysis).length > 0 ? (
-              getDifficultyEntries(quizResult.difficulty_analysis).map(
-                ([difficulty, stats], index) => (
-                  <div key={index} style={cardStyle}>
-                    <strong>{formatLabel(difficulty)}</strong>
-                    <p>
-                      {stats.correct_answers}/{stats.total_questions} correct
-                      {stats.percentage !== null &&
-                      stats.percentage !== undefined
-                        ? ` (${stats.percentage}%)`
-                        : ""}
-                    </p>
-                  </div>
-                )
-              )
-            ) : (
-              <p>No difficulty analysis available.</p>
-            )}
-
-            {/* ANSWER REVIEW */}
-
-            <h3>Answer Review</h3>
-
-            {quizResult.answer_review?.length > 0 ? (
-              quizResult.answer_review.map((answer, index) => (
-                <div key={answer.question_id || index} style={cardStyle}>
-                  <h4>
-                    Question {index + 1} —{" "}
-                    <span
-                      style={{
-                        color:
-                          answer.status === "correct"
-                            ? "#15803d"
-                            : answer.status === "incorrect"
-                              ? "#b91c1c"
-                              : "#92400e"
-                      }}
-                    >
-                      {formatLabel(answer.status)}
-                    </span>
-                  </h4>
-
-                  <p>{answer.question}</p>
-
-                  <p>
-                    <strong>Topic:</strong> {answer.topic || "Not available"}
-                  </p>
-
-                  <p>
-                    <strong>Your answer:</strong>{" "}
-                    {answer.submitted_answer || answer.selected_option || "Not answered"}
-                  </p>
-
-                  <p>
-                    <strong>Correct answer:</strong>{" "}
-                    {answer.correct_answer || answer.correct_option || "Not available"}
-                  </p>
-
-                  <p>
-                    <strong>Explanation:</strong>{" "}
-                    {answer.explanation || "No explanation available."}
-                  </p>
-                </div>
-              ))
-            ) : (
-              <p>No answer review available.</p>
-            )}
-
-            <div style={noticeStyle}>
-              <strong>Assessment limitation:</strong>{" "}
-              {quizResult.important_note ||
-                "This quiz is an additional knowledge signal. It does not prove course completion, honesty, or institutional eligibility."}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                setQuizResult(null);
-                setAnswers({});
-                setQuizError("");
-              }}
-              style={buttonStyle}
-            >
-              Start Another Assessment
-            </button>
-          </div>
-        )}
-      </section>
+          ) : null}
+        </main>
+      </div>
     </div>
   );
 }
 
-// ==========================================
-// STYLES
-// ==========================================
+function Dashboard({ user, onNavigate }) {
+  const cards = [
+    {
+      id: "academic",
+      icon: "\u{1F393}",
+      title: "Academic Recommendations",
+      description: "Discover courses and learning opportunities matched to your interests.",
+      color: "blue",
+    },
+    {
+      id: "prerequisite",
+      icon: "\u{1F50D}",
+      title: "Prerequisite Verification",
+      description: "Check your knowledge and readiness before taking a course.",
+      color: "purple",
+    },
+    {
+      id: "assessments",
+      icon: "\u{1F4DD}",
+      title: "AI Assessments",
+      description: "Practice concepts, take quizzes and review your performance.",
+      color: "orange",
+    },
+    {
+      id: "career",
+      icon: "\u{1F4BC}",
+      title: "Career Advisor",
+      description: "Explore career paths, required skills and learning roadmaps.",
+      color: "green",
+    },
+    {
+      id: "progress",
+      icon: "\u{1F4CA}",
+      title: "Profile & Progress",
+      description: "Review your learning activity and student profile.",
+      color: "pink",
+    },
+  ];
 
-const pageStyle = {
-  maxWidth: "1100px",
-  margin: "30px auto",
-  padding: "20px",
-  fontFamily: "Arial, sans-serif",
-  color: "#1f2937"
-};
+  return (
+    <div className="dashboard">
+      <section className="welcome-banner">
+        <div className="welcome-content">
+          <span className="eyebrow">YOUR ACADEMIC JOURNEY</span>
+          <h1>Hello, {user.name}!</h1>
+          <p>
+            Welcome to your personal AI Academic &amp; Career Advisor.
+            Explore your options, strengthen your knowledge and plan
+            your future.
+          </p>
+          <button
+            className="primary-button dashboard-cta"
+            onClick={() => onNavigate("academic")}
+          >
+            Explore Academic Advisor <span>→</span>
+          </button>
+        </div>
 
-const headerStyle = {
-  textAlign: "center",
-  padding: "25px",
-  background: "#eff6ff",
-  borderRadius: "12px",
-  marginBottom: "25px"
-};
+        <div className="welcome-illustration">
+          <div className="illustration-orbit"></div>
+          <div className="illustration-card">
+            <span>YOUR FUTURE</span>
+            <strong>Starts with a plan.</strong>
+            <small>LEARN · EXPLORE · GROW</small>
+          </div>
+        </div>
+      </section>
 
-const formStyle = {
-  padding: "25px",
-  border: "1px solid #ddd",
-  borderRadius: "12px",
-  marginBottom: "25px",
-  background: "#ffffff"
-};
+      <section className="dashboard-section-heading">
+        <div>
+          <span className="eyebrow">EXPLORE YOUR PLATFORM</span>
+          <h2>Your learning workspace</h2>
+          <p>Choose a section to get started.</p>
+        </div>
+      </section>
 
-const inputStyle = {
-  display: "block",
-  width: "100%",
-  padding: "12px",
-  margin: "10px 0 20px",
-  boxSizing: "border-box",
-  border: "1px solid #ccc",
-  borderRadius: "6px"
-};
+      <section className="feature-grid">
+        {cards.map((card) => (
+          <button
+            key={card.id}
+            className="feature-card"
+            onClick={() => onNavigate(card.id)}
+          >
+            <div className={`feature-icon ${card.color}`}>{card.icon}</div>
+            <h3>{card.title}</h3>
+            <p>{card.description}</p>
+            <span className="feature-link">
+              Open section <span>→</span>
+            </span>
+          </button>
+        ))}
+      </section>
 
-const buttonStyle = {
-  padding: "13px 20px",
-  background: "#2563eb",
-  color: "white",
-  border: "none",
-  borderRadius: "6px",
-  cursor: "pointer",
-  fontWeight: "bold"
-};
+      <section className="dashboard-insight">
+        <div className="insight-heading">
+          <span className="insight-eyebrow">YOUR LEARNING JOURNEY</span>
+          <h2>Everything you need to move forward</h2>
+          <p>
+            Build knowledge, check your readiness and turn your interests
+            into a career plan.
+          </p>
+        </div>
 
-const submitButtonStyle = {
-  ...buttonStyle,
-  background: "#15803d",
-  marginTop: "15px"
-};
+        <div className="insight-grid">
+          <div className="insight-item">
+            <span className="insight-icon">📖</span>
+            <div>
+              <strong>Learn</strong>
+              <p>Explore subjects and discover relevant courses.</p>
+            </div>
+          </div>
 
-const sectionStyle = {
-  marginTop: "30px"
-};
+          <div className="insight-item">
+            <span className="insight-icon">🎯</span>
+            <div>
+              <strong>Practice</strong>
+              <p>Test your knowledge with AI-powered assessments.</p>
+            </div>
+          </div>
 
-const cardStyle = {
-  border: "1px solid #ddd",
-  borderRadius: "10px",
-  padding: "18px",
-  margin: "15px 0",
-  background: "#ffffff"
-};
+          <div className="insight-item">
+            <span className="insight-icon">🚀</span>
+            <div>
+              <strong>Grow</strong>
+              <p>Find career paths and skills to work towards.</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
-const statsContainer = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-  gap: "15px",
-  margin: "20px 0"
-};
-
-const statCard = {
-  textAlign: "center",
-  background: "#eff6ff",
-  padding: "15px",
-  borderRadius: "10px"
-};
-
-const errorStyle = {
-  color: "#991b1b",
-  background: "#fee2e2",
-  padding: "15px",
-  borderRadius: "8px",
-  margin: "15px 0"
-};
-
-const loadingStyle = {
-  background: "#eff6ff",
-  color: "#1e40af",
-  padding: "15px",
-  borderRadius: "8px",
-  margin: "15px 0",
-  textAlign: "center"
-};
-
-const summaryStyle = {
-  background: "#f3f4f6",
-  padding: "15px",
-  borderRadius: "10px",
-  margin: "15px 0"
-};
-
-const missingStyle = {
-  background: "#fef2f2",
-  padding: "12px",
-  borderRadius: "8px",
-  marginTop: "12px"
-};
-
-const matchedStyle = {
-  background: "#f0fdf4",
-  padding: "12px",
-  borderRadius: "8px",
-  marginTop: "12px"
-};
-
-const restrictionStyle = {
-  background: "#f5f3ff",
-  color: "#5b21b6",
-  padding: "12px",
-  borderRadius: "8px",
-  marginTop: "12px"
-};
-
-const verificationStyle = {
-  background: "#fffbeb",
-  color: "#92400e",
-  padding: "12px",
-  borderRadius: "8px",
-  marginTop: "12px"
-};
-
-const infoStyle = {
-  background: "#eff6ff",
-  padding: "12px",
-  borderRadius: "8px",
-  marginTop: "12px"
-};
-
-const noticeStyle = {
-  background: "#fef3c7",
-  color: "#92400e",
-  padding: "15px",
-  borderRadius: "8px",
-  marginTop: "15px"
-};
-
-const dividerStyle = {
-  margin: "35px 0",
-  border: "none",
-  borderTop: "1px solid #ddd"
-};
-
-const quizHeaderStyle = {
-  background: "#eff6ff",
-  padding: "20px",
-  borderRadius: "10px",
-  marginBottom: "20px"
-};
-
-const questionStyle = {
-  padding: "18px 0",
-  borderBottom: "1px solid #e5e7eb"
-};
-
-const mutedStyle = {
-  color: "#6b7280",
-  fontSize: "13px"
-};
-
-const optionStyle = {
-  display: "flex",
-  alignItems: "flex-start",
-  gap: "10px",
-  padding: "12px",
-  margin: "8px 0",
-  border: "1px solid #e5e7eb",
-  borderRadius: "7px",
-  cursor: "pointer"
-};
+      <section className="dashboard-footer">
+        <div className="footer-star">✨</div>
+        <div className="dashboard-footer-copy">
+          <span className="footer-kicker">YOUR LEARNING JOURNEY</span>
+          <strong>Make every learning decision count.</strong>
+          <p>
+            Explore opportunities, build skills, check your readiness
+            and move closer to your career goals.
+          </p>
+          <div className="footer-highlights">
+            <span>📚 Explore</span>
+            <span>✍️ Practice</span>
+            <span>🏆 Achieve</span>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
 
 export default App;
